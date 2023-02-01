@@ -26,3 +26,7 @@
 **/snapshots/*.snap.new
 
 package-lock.json
+
+# project's built/temp docs
+Changelog.html
+ReadMe.html
