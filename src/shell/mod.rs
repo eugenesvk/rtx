@@ -6,12 +6,14 @@ use crate::env;
 mod bash;
 mod fish;
 mod zsh;
+mod xonsh;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum ShellType {
     Bash,
     Fish,
     Zsh,
+    Xonsh,
 }
 
 impl ShellType {
@@ -23,6 +25,8 @@ impl ShellType {
             Some(ShellType::Fish)
         } else if shell.ends_with("zsh") {
             Some(ShellType::Zsh)
+        } else if shell.ends_with("xonsh") {
+            Some(ShellType::Xonsh)
         } else {
             None
         }
@@ -35,6 +39,7 @@ impl Display for ShellType {
             Self::Bash => write!(f, "bash"),
             Self::Fish => write!(f, "fish"),
             Self::Zsh => write!(f, "zsh"),
+            Self::Xonsh => write!(f, "xonsh"),
         }
     }
 }
@@ -51,6 +56,7 @@ pub fn get_shell(shell: Option<ShellType>) -> Box<dyn Shell> {
         Some(ShellType::Bash) => Box::<bash::Bash>::default(),
         Some(ShellType::Zsh) => Box::<zsh::Zsh>::default(),
         Some(ShellType::Fish) => Box::<fish::Fish>::default(),
+        Some(ShellType::Xonsh) => Box::<xonsh::Xonsh>::default(),
         _ => panic!("no shell provided, use `--shell=zsh`"),
     }
 }
