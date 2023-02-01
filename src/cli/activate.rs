@@ -48,6 +48,7 @@ Examples:
     $ eval "$(rtx activate -s bash)"
     $ eval "$(rtx activate -s zsh)"
     $ rtx activate -s fish | source
+    $ execx($(rtx activate -s xonsh))
 "#;
 
 #[cfg(test)]

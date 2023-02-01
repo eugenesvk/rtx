@@ -20,7 +20,7 @@ use crate::{dirs, env, hook_env};
 pub struct HookEnv {
     /// Shell type to generate script for
     ///
-    /// e.g.: bash, zsh, fish
+    /// e.g.: bash, zsh, fish, xonsh
     #[clap(long, short)]
     shell: Option<ShellType>,
 }

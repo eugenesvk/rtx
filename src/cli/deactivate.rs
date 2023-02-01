@@ -13,7 +13,7 @@ use crate::shell::{get_shell, ShellType};
 pub struct Deactivate {
     /// shell type to generate the script for
     ///
-    /// e.g.: bash, zsh, fish
+    /// e.g.: bash, zsh, fish, xonsh
     #[clap(long, short)]
     shell: Option<ShellType>,
 }
@@ -34,6 +34,7 @@ Examples:
     $ eval "$(rtx deactivate -s bash)"
     $ eval "$(rtx deactivate -s zsh)"
     $ rtx deactivate -s fish | source
+    $ execx($(rtx deactivate -s xonsh))
 "#;
 
 #[cfg(test)]

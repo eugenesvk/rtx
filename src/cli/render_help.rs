@@ -43,6 +43,8 @@ Hook rtx into to your shell. This will automatically add `~/bin` to `PATH` if it
 $ echo 'eval "$(~/bin/rtx activate -s bash)"' >> ~/.bashrc
 $ echo 'eval "$(~/bin/rtx activate -s zsh)"' >> ~/.zshrc
 $ echo '~/bin/rtx activate -s fish | source' >> ~/.config/fish/config.fish
+$ echo 'execx($(~/bin/rtx activate -s xonsh))' >> ~/.config/xonsh/rc.xsh
+// or ~/.xonshrc; see below for a pure python xonsh solution that might shave a tiny bit off startup time
 ```
 
 > **Warning**
@@ -264,6 +266,23 @@ $ echo 'eval "$(rtx activate -s bash)"' >> ~/.bashrc
 
 ```sh-session
 $ echo 'rtx activate -s fish | source' >> ~/.config/fish/config.fish
+```
+
+### Xonsh
+
+Since `.xsh` files are [not compiled](https://github.com/xonsh/xonsh/issues/3953) you may shave a bit from startup time by using a pure Python solution. Add the code below to, for example, `~/.config/xonsh/rtx.py` config file and `import rtx` it in `~/.config/xonsh/rc.xsh`:
+```xsh
+from pathlib        	import Path
+from xonsh.built_ins	import XSH
+
+ctx = XSH.ctx
+rtx_init = subprocess.run([Path('~/bin/rtx').expanduser(),'activate','-s','xonsh'],capture_output=True,encoding="UTF-8").stdout
+XSH.builtins.execx(rtx_init,'exec',ctx,filename='rtx')
+```
+
+Or continue to use `rc.xsh`/`.xonshrc`:
+```xsh
+echo 'execx($(~/bin/rtx activate -s xonsh))' >> ~/.config/xonsh/rc.xsh # or ~/.xonshrc
 ```
 
 ### Something else?
