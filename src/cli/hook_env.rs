@@ -82,7 +82,7 @@ impl HookEnv {
             .map(|v| v.to_string())
             .collect_vec();
         if !installed_versions.is_empty() && !*env::RTX_QUIET {
-            rtxstatusln!(out, "{}", installed_versions.join(" "));
+            rtxstatusln!(out, "hook_env: {}", installed_versions.join(" "));
         }
     }
 

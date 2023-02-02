@@ -28,7 +28,7 @@ fn xonsh_escape_sq(input: &str) -> Cow<str> {
 }
 
 fn xonsh_escape_char(ch: char) -> Option<&'static str> {
-    match ch {
+    match ch { // escape ' \ ␤ (docs.python.org/3/reference/lexical_analysis.html#strings)
         '\'' => Some("\\'"),
         '\\' => Some("\\\\"),
         '\n' => Some("\\n"),
@@ -46,27 +46,36 @@ impl Shell for Xonsh {
             let dir_str = dir.to_string_lossy();
             let dir_esc = xonsh_escape_sq(&dir_str);
             out.push_str(&formatdoc! {r#"
-            from os import environ
-            environ['PATH'] += ':' + '{dir_esc}'
-            "#}); // todo: xonsh doesn't update the environment that rtx relies on with $PATH.add even with $UPDATE_OS_ENVIRON (github.com/xonsh/xonsh/issues/3207)
+                #print('   ×××activate !is_dir_in_path')
+                from os               import environ
+                from xonsh.built_ins  import XSH
+
+                envx = XSH.env
+                envx['PATH'].add('{dir_esc}')               # update PATH without the $.xsh syntax
+                environ['PATH'] = envx.get_detyped('PATH')  # update OS environ so rtx can read it
+            "#});
+            // todo: xonsh doesn't update the environment that rtx relies on with PATH.add even with $UPDATE_OS_ENVIRON (github.com/xonsh/xonsh/issues/3207)
+            // with envx.swap(UPDATE_OS_ENVIRON=True): # ← use when ↑ fixed before PATH.add; remove environ
         }
         // using subprocess is a bit more complicated, but allows for using in pure .py configs, which start faster due to being compiled to .pyc
         out.push_str(&formatdoc! {r#"
+            #print('   ×××activate  is_dir_in_path')
             import subprocess
             from xonsh.built_ins  import XSH
 
             def listen_prompt(): # Hook Events
               ctx = XSH.ctx
 
-              rtx_init_proc  = subprocess.run(["{exe}",'hook-env','-s','xonsh'],capture_output=True)
-              rtx_init       = rtx_init_proc.stdout
-              rtx_init_err   = rtx_init_proc.stderr
+              rtx_hook_proc  = subprocess.run(["{exe}",'hook-env','-s','xonsh'],capture_output=True)
+              rtx_hook       = rtx_hook_proc.stdout
+              rtx_hook_err   = rtx_hook_proc.stderr
 
-              if rtx_init_err:
-                print(rtx_init_err.decode())
-                return
-              if rtx_init:
-                execx(rtx_init.decode(), 'exec', ctx, filename='rtx')
+              if rtx_hook_err:
+                print(rtx_hook_err.decode())
+              #  return
+              # todo: ↑ don't return pending resolution https://github.com/jdxcode/rtx/issues/82
+              if rtx_hook:
+                execx(rtx_hook.decode(), 'exec', ctx, filename='rtx')
 
             XSH.builtins.events.on_pre_prompt(listen_prompt) # Activate hook: before showing the prompt
             "#});
@@ -76,6 +85,7 @@ impl Shell for Xonsh {
 
     fn deactivate(&self) -> String {
         formatdoc! {r#"
+            #print('   ××× deactivate')
             from xonsh.built_ins  import XSH
 
             hooks = {{
@@ -93,36 +103,31 @@ impl Shell for Xonsh {
     }
 
     fn set_env(&self, k: &str, v: &str) -> String {
-        // PATH vars are lists, not colon:sep:string
+        // $PATH vars are lists, not colon:sep:string
         let start_path: [&str; 3] = ["PATH", "MANPATH", "INFOPATH"];
         let k_up = k.to_uppercase();
+        let k = shell_escape::unix::escape(k.into()); // todo: drop illegal chars, not escaped
         if start_path.iter().any(|&s| s == k_up) {
-            let mut v_out:String = String::with_capacity(v.len());
-            v_out += "[";
-            v_out += &env::split_paths(&v)
-                .map(|p|
-                    "'".to_owned() // ←'quote'
-                    + &xonsh_escape_sq(&p.to_string_lossy())
-                    +"'" ) // ↑ escape ' \ ␤ (docs.python.org/3/reference/lexical_analysis.html#strings)
+            let v_out = &env::split_paths(&v) // p1:p2:p'3 → iter of p1 p2 p'3
+                .map(|p| "'".to_owned() + &xonsh_escape_sq(&p.to_string_lossy()) +"'") // → 'p\'3'
                 .collect::<Vec<_>>()
-                .join(",");
-            v_out += "]";
-            format!(
-                "${k}={v_out}\n",
-                k = shell_escape::unix::escape(k.into())
-                // todo: ↑ ↓ illegal chars should be dropped, not escaped?
-            )
+                .join(","); // → 'p1','p2','p\'3'
+            formatdoc!(r#"
+                #print(r"""   ××× set_env PATH k={k} v={v_out}""")
+                from os               import environ
+                from xonsh.built_ins  import XSH
+                envx = XSH.env
+                envx[   '{k}'] = [{v_out}]               # update ...PATH without the $.xsh syntax
+                environ['{k}'] = envx.get_detyped('{k}') # update OS environ so rtx can read it
+            "#)
         } else {
-            format!(
-                "${k}='{v}'\n",
-                k = shell_escape::unix::escape(k.into()),
-                v = xonsh_escape_sq(v.into())
-            )
+            let v_out = xonsh_escape_sq(v.into());
+            format!("#print(r'''   ××× set_env k={k}; v={v_out}''')\n${k}='{v_out}'\n")
         }
     }
 
     fn unset_env(&self, k: &str) -> String {
-        format!("del ${k}\n", k = shell_escape::unix::escape(k.into()))
+        format!("#print(r'''   ××× unset_env k={k}''')\ndel ${k}\n", k = shell_escape::unix::escape(k.into()))
     }
 }
 
