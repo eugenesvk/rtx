@@ -47,6 +47,7 @@ impl Shell for Xonsh {
         // meanwhile, save variables twice: in shell env + in os env
         // use xonsh API instead of $.xsh to allow use inside of .py configs, which start faster due to being compiled to .pyc
         out.push_str(&formatdoc! {r#"
+            import sys, subprocess
             from os               import environ
             from xonsh.built_ins  import XSH
 
@@ -64,7 +65,16 @@ impl Shell for Xonsh {
         // todo: subprocess instead of $() is a bit faster, but lose auto-color detection (use $FORCE_COLOR)
         out.push_str(&formatdoc! {r#"
             def listen_prompt(): # Hook Events
-              execx($({exe} hook-env -s xonsh))
+              ctx = XSH.ctx
+
+              rtx_hook_proc  = subprocess.run(["{exe}",'hook-env','-s','xonsh'],capture_output=True)
+              rtx_hook       = rtx_hook_proc.stdout
+              rtx_hook_err   = rtx_hook_proc.stderr
+
+              if rtx_hook_err:
+                print(rtx_hook_err.decode().rstrip(), file=sys.stderr)
+              if rtx_hook:
+                execx(rtx_hook.decode(), 'exec', ctx, filename='rtx')
 
             XSH.builtins.events.on_pre_prompt(listen_prompt) # Activate hook: before showing the prompt
             "#});
