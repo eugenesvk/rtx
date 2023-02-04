@@ -63,10 +63,10 @@ impl Shell for Xonsh {
         }
         // todo: subprocess instead of $() is a bit faster, but lose auto-color detection (use $FORCE_COLOR)
         out.push_str(&formatdoc! {r#"
-            def listen_prompt(): # Hook Events
+            def listen_prompt(olddir, newdir, **kw): # Hook Events
               execx($({exe} hook-env -s xonsh))
 
-            XSH.builtins.events.on_pre_prompt(listen_prompt) # Activate hook: before showing the prompt
+            XSH.builtins.events.on_chdir(listen_prompt) # Activate hook: on each cd
             "#});
 
         out
